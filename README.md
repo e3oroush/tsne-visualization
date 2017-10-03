@@ -12,4 +12,4 @@ TSNE-Visualization of large dataset images using pre-trained networks in Tensorf
 * PIL
 
 ## Usage:
-execute python ```tsne-visualization.py``` --help for usage
+execute `python tsne-visualization.py --help` for usage
