@@ -21,7 +21,7 @@ from PIL import Image
 supported_feature_extraction = ['inception', 'raw', 'vggfaces']
 # TODO: This class should be standalone and independent with tf.app.flags
 # Google inception pre-trained network
-class Feature_extractor():
+class FeatureExtractor(object):
     def __init__(self, image_names):
         self.image_names = image_names
         self.supported_feature_extraction = supported_feature_extraction
@@ -109,7 +109,7 @@ class Feature_extractor():
                 features, self.image_names = pickle.load(f)
         else:
             features = np.zeros([tf.flags.FLAGS.no_of_images, 2048])
-            for i in xrange(tf.flags.FLAGS.no_of_images):
+            for i in range(tf.flags.FLAGS.no_of_images):
                 print('image name: %s index: %d/%d' %(
                         self.image_names[i], i, tf.flags.FLAGS.no_of_images))
                 features[i, :] = run_inference_on_image(image=self.image_names[i]).squeeze()
@@ -150,7 +150,7 @@ class Feature_extractor():
                 x = np.expand_dims(x, axis=0)
                 x = utils.preprocess_input(x)
                 print('image name: %s progress: %d/%d'%(
-                        name, i, tf.flags.FLAGS.no_of_images))
+                        name, i+1, tf.flags.FLAGS.no_of_images))
                 features[i, :] = vgg_model_fc7.predict(x)
             with open(feature_filename, 'wb') as f:
                 pickle.dump((features, self.image_names), f)

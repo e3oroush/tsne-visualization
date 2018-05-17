@@ -1,0 +1,8 @@
+numpy
+tensorflow
+keras
+keras_vggface
+scikit-learn
+matplotlib
+glob2
+PIL

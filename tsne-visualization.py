@@ -18,18 +18,19 @@ from sklearn.manifold import TSNE
 import glob2
 
 import matplotlib.pyplot as plt
-from feature_extractions import Feature_extractor, supported_feature_extraction
-
+from feature_extractions import FeatureExtractor, supported_feature_extraction
+from scipy.spatial.distance import cdist
+import os
 
 # custom paramers: change these parameters to properly run on your machine
-tf.app.flags.DEFINE_string('image_path', '/home/esoroush/Datasets/MSRC/MSRC/',
+tf.app.flags.DEFINE_string('image_path', '',
                            'Addres of all images')
-tf.app.flags.DEFINE_integer('no_of_images', 1600, 'Maximum number of images')
+tf.app.flags.DEFINE_integer('no_of_images', 100, 'Maximum number of images')
 tf.app.flags.DEFINE_boolean('stretched', False, 
                             'Determines if the resulting merged image to be stretched')
-tf.app.flags.DEFINE_integer('image_width', 64, 
+tf.app.flags.DEFINE_integer('image_width', 200, 
                             'width and height of each image in the resulting merged image')
-tf.app.flags.DEFINE_string('feature_extraction', 'inception', 
+tf.app.flags.DEFINE_string('feature_extraction', 'vggfaces', 
                            'Determines feature extraction method. Choices are: {}'
                            .format(supported_feature_extraction))
 
@@ -38,31 +39,40 @@ def visualize_with_tsne(features, image_names):
 # use tsne to cluster images in 2 dimensions
     tsne = TSNE()
     reduced = tsne.fit_transform(features)
-    reduced_transformed = reduced - np.min(reduced, axis=0)
-    reduced_transformed /= np.max(reduced_transformed, axis=0)
-    image_xindex_sorted = np.argsort(np.sum(reduced_transformed, axis=1))
+    reduced = reduced - np.min(reduced, axis=0)
+    reduced /= np.max(reduced, axis=0)
+    
     
     # draw all images in a merged image
-    merged_width = int(np.ceil(np.sqrt(
-            tf.flags.FLAGS.no_of_images))*tf.flags.FLAGS.image_width)
+    merged_width = int(np.sqrt(
+            tf.flags.FLAGS.no_of_images))*tf.flags.FLAGS.image_width
     merged_image = np.zeros((merged_width, merged_width, 3), dtype='uint8')
-    
-    for counter, index in enumerate(image_xindex_sorted):
-        # set location
-        if tf.flags.FLAGS.stretched:
-            b = int(np.mod(counter, np.sqrt(tf.flags.FLAGS.no_of_images)))
-            a = int(np.mod(counter//np.sqrt(tf.flags.FLAGS.no_of_images),
-                           np.sqrt(tf.flags.FLAGS.no_of_images)))
-            image_address = image_names[index]
+    if tf.flags.FLAGS.stretched:
+        size=int(np.sqrt(len(image_names)))
+        grid=np.dstack(np.meshgrid(np.arange(0,size),np.arange(0,size))).reshape(-1,2)
+        reduced*=(size-1)
+        cost = cdist(reduced, grid, "sqeuclidean").astype(np.float)
+        grid_indexes=cost.argsort(1)
+        seleceted=[]
+        for index,image_address in enumerate(image_names):
             img = np.asarray(Image.open(image_address).resize(
-                    (tf.flags.FLAGS.image_width, tf.flags.FLAGS.image_width)))
+                (tf.flags.FLAGS.image_width, tf.flags.FLAGS.image_width)))
+            for i in grid_indexes[index]:
+                if i not in seleceted:
+                    seleceted.append(i)
+                    break
+            a,b=grid[i]
             merged_image[a*tf.flags.FLAGS.image_width:(a+1)*tf.flags.FLAGS.image_width,
                          b*tf.flags.FLAGS.image_width:(b+1)*tf.flags.FLAGS.image_width,
                          :] = img[:,:,:3]
-        else:
-            a = np.ceil(reduced_transformed[counter, 0] * 
+        
+
+    else:
+        image_xindex_sorted = np.argsort(np.sum(reduced, axis=1))
+        for counter, index in enumerate(image_xindex_sorted):
+            a = np.ceil(reduced[counter, 0] * 
                         (merged_width-tf.flags.FLAGS.image_width-1)+1)
-            b = np.ceil(reduced_transformed[counter, 1] * (merged_width-tf.flags.FLAGS.image_width-1)+1)
+            b = np.ceil(reduced[counter, 1] * (merged_width-tf.flags.FLAGS.image_width-1)+1)
             a = int(a - np.mod(a-1,tf.flags.FLAGS.image_width) + 1)
             b = int(b - np.mod(b-1,tf.flags.FLAGS.image_width) + 1)
             if merged_image[a,b,0] != 0:
@@ -85,16 +95,23 @@ def visualize_with_tsne(features, image_names):
 
 def main(_):
     # find all images
+    if tf.flags.FLAGS.image_path[-1] !='/':
+        tf.flags.FLAGS.image_path+='/'
     image_names  = glob2.glob(tf.flags.FLAGS.image_path + "**/*.png") 
     image_names +=glob2.glob(tf.flags.FLAGS.image_path + "**/*.jpg")
     image_names +=glob2.glob(tf.flags.FLAGS.image_path + "**/*.gif")
+    if len(image_names)==0:
+        print("No images found in the directory")
+        exit()
     # suffle images
     np.random.seed(3)
     np.random.shuffle(image_names)
+    # make sure number of images is a root square number
+    tf.flags.FLAGS.no_of_images = int(np.sqrt(tf.flags.FLAGS.no_of_images))**2
     if tf.flags.FLAGS.no_of_images > len(image_names):
         tf.flags.FLAGS.no_of_images = len(image_names)
     image_names = image_names[:tf.flags.FLAGS.no_of_images]
-    feature_extractor = Feature_extractor(image_names)
+    feature_extractor = FeatureExtractor(image_names)
     features = feature_extractor.extract_feature()
     visualize_with_tsne(features, image_names)
     
