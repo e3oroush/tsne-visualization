@@ -23,7 +23,7 @@ from scipy.spatial.distance import cdist
 import os
 
 # custom paramers: change these parameters to properly run on your machine
-tf.app.flags.DEFINE_string('image_path', '',
+tf.app.flags.DEFINE_string('image_path', '/home/esoroush/Datasets/faraadid/Ebi',
                            'Addres of all images')
 tf.app.flags.DEFINE_integer('no_of_images', 100, 'Maximum number of images')
 tf.app.flags.DEFINE_boolean('stretched', False, 
@@ -95,6 +95,8 @@ def visualize_with_tsne(features, image_names):
 
 def main(_):
     # find all images
+    if not os.path.exists(tf.flags.FLAGS.image_path):
+        raise(FileExistsError("You have to provide a valid image path"))
     if tf.flags.FLAGS.image_path[-1] !='/':
         tf.flags.FLAGS.image_path+='/'
     image_names  = glob2.glob(tf.flags.FLAGS.image_path + "**/*.png") 

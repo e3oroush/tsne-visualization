@@ -24,6 +24,8 @@ supported_feature_extraction = ['inception', 'raw', 'vggfaces']
 class FeatureExtractor(object):
     def __init__(self, image_names):
         self.image_names = image_names
+        self.no_of_images = len(image_names)
+        self.image_path = image_names[0].split('/')[-2]
         self.supported_feature_extraction = supported_feature_extraction
     def extract_feature(self):
         if tf.flags.FLAGS.feature_extraction == 'raw':
@@ -103,15 +105,15 @@ class FeatureExtractor(object):
         # Creates graph from saved GraphDef.
         create_graph()
         feature_filename = '%s-feature-inception-%d.p'%(
-                tf.flags.FLAGS.image_path.split('/')[-2], tf.flags.FLAGS.no_of_images)
+                self.image_path, self.no_of_images)
         if os.path.exists(feature_filename):
             with open(feature_filename, 'rb') as f:
                 features, self.image_names = pickle.load(f)
         else:
-            features = np.zeros([tf.flags.FLAGS.no_of_images, 2048])
-            for i in range(tf.flags.FLAGS.no_of_images):
+            features = np.zeros([self.no_of_images, 2048])
+            for i in range(self.no_of_images):
                 print('image name: %s index: %d/%d' %(
-                        self.image_names[i], i, tf.flags.FLAGS.no_of_images))
+                        self.image_names[i], i, self.no_of_images))
                 features[i, :] = run_inference_on_image(image=self.image_names[i]).squeeze()
             with open(feature_filename, 'wb') as f:
                 pickle.dump((features, self.image_names), f)
@@ -120,7 +122,7 @@ class FeatureExtractor(object):
     # raw image pixels resized to 100x100
     def raw_features(self):
         print('using raw method for feature extraction')
-        features = np.zeros([tf.flags.FLAGS.no_of_images, 100*100])
+        features = np.zeros([self.no_of_images, 100*100])
         for i, name in enumerate(self.image_names):
             features[i, :] = np.asarray(Image.open(name).resize((100, 100)).
                     convert('L')).reshape(-1,)
@@ -130,7 +132,7 @@ class FeatureExtractor(object):
     def vggfaces_features(self):
         print('using vggfaces network for feature extraction')
         # Convolution Features
-        features = np.zeros([tf.flags.FLAGS.no_of_images, 2048])
+        features = np.zeros([self.no_of_images, 2048])
     #    vgg_model_conv = VGGFace(include_top=False, input_shape=(224, 224, 3), pooling='avg') # pooling: None, avg or max
         # FC7 Features
         vgg_model = VGGFace() # pooling: None, avg or max
@@ -138,19 +140,19 @@ class FeatureExtractor(object):
         vgg_model_fc7 = Model(vgg_model.input, out)
     
         feature_filename = '%s-feature-vggfaces-%d.p'%(
-                tf.flags.FLAGS.image_path.split('/')[-2], tf.flags.FLAGS.no_of_images)
+                self.image_path, self.no_of_images)
         if os.path.exists(feature_filename):
             with open(feature_filename, 'rb') as f:
                 features, self.image_names = pickle.load(f)
         else:
-            features = np.zeros([tf.flags.FLAGS.no_of_images, 4096])
+            features = np.zeros([self.no_of_images, 4096])
             for i, name in enumerate(self.image_names):
                 img = image.load_img(name, target_size=(224, 224))
                 x = image.img_to_array(img)
                 x = np.expand_dims(x, axis=0)
                 x = utils.preprocess_input(x)
                 print('image name: %s progress: %d/%d'%(
-                        name, i+1, tf.flags.FLAGS.no_of_images))
+                        name, i+1, self.no_of_images))
                 features[i, :] = vgg_model_fc7.predict(x)
             with open(feature_filename, 'wb') as f:
                 pickle.dump((features, self.image_names), f)
