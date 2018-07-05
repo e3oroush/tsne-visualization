@@ -6,3 +6,4 @@ scikit-learn
 matplotlib
 glob2
 PIL
+lapjv
